@@ -52,11 +52,11 @@ if (typeof Array.prototype.last != 'function') {
     $('a').each(function(){
       // TODO リンクじゃないaタグは除外する
       var a = $(this);
-      var inner = link_inner_wrapper.clone(false)
+      var wrapper = link_inner_wrapper.clone(false)
           .attr('data-url', a.attr('href'))
           .attr('data-selected', false)
           .attr('data-matched', false);
-      $(this).wrapInner(inner);
+      $(this).wrapInner(wrapper);
     });
 
     me.links = $('.link-inner-wrapper');
@@ -172,6 +172,7 @@ if (typeof Array.prototype.last != 'function') {
     }
 
     me.update_link_caret();
+    me.scroll_to_caret();
   };
 
   LinkSelector.prototype.move_caret_to_next = function(){
@@ -189,6 +190,13 @@ if (typeof Array.prototype.last != 'function') {
         first.data('selected', true);
         this.selected_link = first;
       }
+    }
+  };
+
+  LinkSelector.prototype.scroll_to_caret = function(){
+    if(this.selected_link){
+      var top = this.selected_link.offset().top;
+      $('body').animate({ scrollTop: top }, 'fast');
     }
   };
 
@@ -212,7 +220,7 @@ if (typeof Array.prototype.last != 'function') {
       return
     }
 
-    // i18n対応
+    // TODO i18n対応
     var key = String.fromCharCode(key_code);
     if(!key.match(/\w/)){
       return
