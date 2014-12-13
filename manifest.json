@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "name": "Link Selector",
+  "version": "0.0.1",
+
+  "description": "Link Selector",
+
+  "icons": {
+    "16": "icons/japan50_16.png",
+    "48": "icons/japan50_48.png",
+    "128": "icons/japan50_128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "*"
+      ],
+      "css": ["css/main.css"],
+      "js": [
+        "js/jquery-1.11.1.min.js",
+        "js/main.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
