@@ -7,17 +7,26 @@ if (typeof String.prototype.startsWith != 'function') {
   };
 }
 
+if (typeof Array.prototype.last != 'function') {
+  Array.prototype.last = function() {
+    return this[this.length - 1];
+  };
+}
+
 (function(global, $, undefined){
   var console = global.console;
 
   function LinkSelector() {
     this.search_mode = false;
     this.search_word = '';
+    this.search_word_histories = [];
     this.d = null;
     this.links = null;
     this.incremental_search = true;
     this.clear_search_word_when_switching = true;
-    this.selected = null;
+    this.selected_link = null;
+    this.matched_style = {backgroundColor: '#ff0000', opacity: 0.5};
+    this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
     this.debug = true;
 
     this.init();
@@ -25,8 +34,16 @@ if (typeof String.prototype.startsWith != 'function') {
 
   LinkSelector.prototype.init = function(){
     // position: absolute で色を付けるやつ
-    this.d = $('<span style="position: absolute; top: 0px; left: 0px; background-color: #ff0000; opacity: 0.5; width: 100%; height: 100%;" />')
-        .addClass('link-caret');
+    this.d = $('<span />')
+        .addClass('link-caret')
+        .css({
+          position: 'absolute',
+          top: '0px',
+          left: '0px',
+          width: '100%',
+          height: '100%'
+        })
+        .css(this.matched_style);
 
     // aタグの中に入れるだけのやつ
     var link_inner_wrapper = $('<span class="link-inner-wrapper" style="position: relative;" />');
@@ -67,11 +84,14 @@ if (typeof String.prototype.startsWith != 'function') {
 
       console.log(e.keyCode);
       switch (e.keyCode){
-        case 47:
+        case 47: // slash
           me.switch();
           break;
-        case 13:
+        case 13: // enter
           me.search();
+          break;
+        case 32: // space
+          me.go();
           break;
         default:
           me.input(e.keyCode, backspace);
@@ -115,9 +135,10 @@ if (typeof String.prototype.startsWith != 'function') {
   };
 
   LinkSelector.prototype.clear_search_result = function(){
-    this.selected = null;
+    this.selected_link = null;
     this.links.data('selected', false);
     this.links.data('matched', false);
+    this.links.data('matched-index', null);
   };
 
   LinkSelector.prototype.search = function(){
@@ -126,26 +147,55 @@ if (typeof String.prototype.startsWith != 'function') {
     }
 
     var me = this;
-    me.clear_search_result();
+    if(me.search_word &&
+        me.search_word == me.search_word_histories.last() && me.selected_link){
+      this.move_caret_to_next();
+    }else{
+      me.clear_search_result();
+      me.search_word_histories.push(me.search_word);
 
-    me.links.each(function(i){
-      var link = $(this);
+      var matched_index = 0;
+      me.links.each(function(){
+        var link = $(this);
 
-      // TODO 小文字にして保持した方がよい
-      if(link.text().toLowerCase().startsWith(me.search_word.toLowerCase())) {
-        link.data('matched', true);
-        if(!me.selected){
-          me.selected = link;
-          link.data('selected', true);
+        // TODO 小文字にして保持した方がよい
+        if(link.text().toLowerCase().startsWith(me.search_word.toLowerCase())) {
+          link.data('matched', true);
+          link.data('matched-index', matched_index++);
+
+          if(!me.selected_link){
+            link.data('selected', true);
+            me.selected_link = link;
+          }
         }
-      }
-    });
+      });
+    }
 
     me.update_link_caret();
   };
 
+  LinkSelector.prototype.move_caret_to_next = function(){
+    var matched_index = this.selected_link.data('matched-index');
+    var next = this.links.filter(function(){ return $(this).data('matched-index') == matched_index + 1 });
+
+    if(next.length == 1){
+      this.selected_link.data('selected', false);
+      next.data('selected', true);
+      this.selected_link = next;
+    }else{
+      var first = this.links.filter(function(){ return $(this).data('matched-index') == 0 });
+      if(first.length == 1){
+        this.selected_link.data('selected', false);
+        first.data('selected', true);
+        this.selected_link = first;
+      }
+    }
+  };
+
   LinkSelector.prototype.go = function(){
-    this.update_link_caret();
+    if(this.selected_link){
+      global.location.href = this.selected_link.data('url');
+    }
   };
 
   LinkSelector.prototype.input = function(key_code, backspace){
@@ -200,11 +250,15 @@ if (typeof String.prototype.startsWith != 'function') {
           .find('.link-caret')
           .remove();
 
-      // TODO 小文字にして保持した方がよい
       if(link.data('matched')) {
         link.append(me.d.clone(false));
       }
     });
+
+    if(me.selected_link){
+      console.log('selected', me.selected_link);
+      me.selected_link.find('.link-caret').css(me.selected_style);
+    }
   };
 
   LinkSelector.prototype.print = function(name){
