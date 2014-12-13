@@ -146,6 +146,10 @@ if (typeof Array.prototype.last != 'function') {
       this.update();
     }
 
+    if(this.search_mode){
+      this.search_box.focus();
+    }
+
     if(this.debug) this.print('switch');
   };
 
@@ -301,6 +305,5 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   var app = new LinkSelector();
-  global['app'] = app;
 
 })(window, jQuery);
