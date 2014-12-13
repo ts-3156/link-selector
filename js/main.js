@@ -7,6 +7,12 @@ if (typeof String.prototype.startsWith != 'function') {
   };
 }
 
+if (typeof Array.prototype.first != 'function') {
+  Array.prototype.first = function() {
+    return this[0];
+  };
+}
+
 if (typeof Array.prototype.last != 'function') {
   Array.prototype.last = function() {
     return this[this.length - 1];
@@ -34,8 +40,8 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype.init = function(){
     // position: absolute で色を付けるやつ
-    this.d = $('<span />')
-        .addClass('link-caret')
+    this.matched_link_wrapper = $('<span />')
+        .addClass('matched-link-wrapper')
         .css({
           position: 'absolute',
           top: '0px',
@@ -46,23 +52,23 @@ if (typeof Array.prototype.last != 'function') {
         .css(this.matched_style);
 
     // aタグの中に入れるだけのやつ
-    var link_inner_wrapper = $('<span class="link-inner-wrapper" style="position: relative;" />');
+    var link_inner_wrapper = $('<span class="link-inner-wrapper" style="position: relative;" />')
+        .attr('data-selected', false)
+        .attr('data-matched', false);
 
     var me = this;
     $('a').each(function(){
       // TODO リンクじゃないaタグは除外する
       var a = $(this);
       var wrapper = link_inner_wrapper.clone(false)
-          .attr('data-url', a.attr('href'))
-          .attr('data-selected', false)
-          .attr('data-matched', false);
+          .attr('data-url', a.attr('href'));
       $(this).wrapInner(wrapper);
     });
 
     me.links = $('.link-inner-wrapper');
 
     var body = $('body');
-    me.search_box = $('<div id="search-word-wrapper" />')
+    me.search_box = $('<input />')
         .css({
           display: 'none',
           position: 'fixed',
@@ -76,6 +82,7 @@ if (typeof Array.prototype.last != 'function') {
 
     body.prepend(me.search_box);
 
+    var shifted = false;
     body.on('keypress', function(e, backspace){
       if(me.search_mode){
         e.preventDefault();
@@ -88,7 +95,7 @@ if (typeof Array.prototype.last != 'function') {
           me.switch();
           break;
         case 13: // enter
-          me.search();
+          me.search(shifted);
           break;
         case 32: // space
           me.go();
@@ -104,6 +111,10 @@ if (typeof Array.prototype.last != 'function') {
         return true
       }
     }).on('keydown', function(e) {
+      if(e.keyCode == 16){ // shift
+        shifted = true;
+      }
+
       if(e.keyCode == 8 && me.search_mode) {
         e.preventDefault();
         e.stopPropagation();
@@ -113,6 +124,10 @@ if (typeof Array.prototype.last != 'function') {
         return false
       }else{
         return true
+      }
+    }).on('keyup', function(e){
+      if(e.keyCode == 16){ // shift
+        shifted = false;
       }
     });
   };
@@ -141,7 +156,7 @@ if (typeof Array.prototype.last != 'function') {
     this.links.data('matched-index', null);
   };
 
-  LinkSelector.prototype.search = function(){
+  LinkSelector.prototype.search = function(reverse){
     if(!this.search_mode) {
       return
     }
@@ -149,7 +164,11 @@ if (typeof Array.prototype.last != 'function') {
     var me = this;
     if(me.search_word &&
         me.search_word == me.search_word_histories.last() && me.selected_link){
-      this.move_caret_to_next();
+      if(reverse){
+        this.move_caret_to_prev();
+      }else{
+        this.move_caret_to_next();
+      }
     }else{
       me.clear_search_result();
       me.search_word_histories.push(me.search_word);
@@ -175,20 +194,28 @@ if (typeof Array.prototype.last != 'function') {
     me.scroll_to_caret();
   };
 
+  LinkSelector.prototype.move_caret_to_prev = function(){
+    this._move_caret_to(-1, 'last');
+  };
+
   LinkSelector.prototype.move_caret_to_next = function(){
+    this._move_caret_to(1, 'first');
+  };
+
+  LinkSelector.prototype._move_caret_to = function(diff, fn_name){
     var matched_index = this.selected_link.data('matched-index');
-    var next = this.links.filter(function(){ return $(this).data('matched-index') == matched_index + 1 });
+    var next = this.links.filter(function(){ return $(this).data('matched-index') == matched_index + diff });
 
     if(next.length == 1){
       this.selected_link.data('selected', false);
       next.data('selected', true);
       this.selected_link = next;
     }else{
-      var first = this.links.filter(function(){ return $(this).data('matched-index') == 0 });
-      if(first.length == 1){
+      var target = this.links.filter(function(){ return $(this).data('matched-index') })[fn_name]();
+      if(target.length == 1){
         this.selected_link.data('selected', false);
-        first.data('selected', true);
-        this.selected_link = first;
+        target.data('selected', true);
+        this.selected_link = target;
       }
     }
   };
@@ -222,9 +249,9 @@ if (typeof Array.prototype.last != 'function') {
 
     // TODO i18n対応
     var key = String.fromCharCode(key_code);
-    if(!key.match(/\w/)){
-      return
-    }
+    //if(!key.match(/\w/)){
+    //  return
+    //}
 
     this.search_word += key;
     this.update_search_box();
@@ -247,7 +274,7 @@ if (typeof Array.prototype.last != 'function') {
       this.search_box.css('display', 'block');
     }
 
-    this.search_box.text(this.search_word);
+    this.search_box.val(this.search_word);
   };
 
   LinkSelector.prototype.update_link_caret = function(){
@@ -255,17 +282,17 @@ if (typeof Array.prototype.last != 'function') {
     me.links.each(function(i){
       var link = $(this);
       link
-          .find('.link-caret')
+          .find('.matched-link-wrapper')
           .remove();
 
       if(link.data('matched')) {
-        link.append(me.d.clone(false));
+        link.append(me.matched_link_wrapper.clone(false));
       }
     });
 
     if(me.selected_link){
       console.log('selected', me.selected_link);
-      me.selected_link.find('.link-caret').css(me.selected_style);
+      me.selected_link.find('.matched-link-wrapper').css(me.selected_style);
     }
   };
 
