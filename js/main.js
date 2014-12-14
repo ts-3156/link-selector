@@ -19,6 +19,12 @@ if (typeof Array.prototype.last != 'function') {
   };
 }
 
+if (typeof jQuery.fn.exists != 'function') {
+  jQuery.fn.exists = function() {
+    return this.length
+  };
+}
+
 (function(global, $, undefined){
   var console = global.console;
   var clearInterval = global.clearInterval;
@@ -88,6 +94,12 @@ if (typeof Array.prototype.last != 'function') {
         && this.search_word != this.search_word_histories.last()
   };
 
+  SearchBox.prototype.search_word_matched = function(str){
+    // TODO 小文字にして持っといた方がいいかも
+    // TODO 前方一致以外のマッチ
+    return str.toLowerCase().startsWith(this.search_word.toLowerCase())
+  };
+
   SearchBox.prototype.focus = function(){
     this.element.focus();
   };
@@ -109,8 +121,9 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   function LinkSelector() {
-    this.matched_link_wrapper = null;
+    this.matched_link_style_layer = null;
     this.links = null;
+    this.matched_links = null;
     this.selected_link = null;
     this.input_timer_id = null;
     this.incremental_search = true;
@@ -123,14 +136,12 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype.init = function(){
     // position: absolute で色を付けるやつ
-    this.matched_link_wrapper = $('<div />')
-        .addClass('matched-link-wrapper')
+    this.matched_link_style_layer = $('<div />')
+        .addClass('matched-link-style-layer')
         .addClass('matched');
 
     // aタグの中に入れるだけのやつ
-    var link_inner_wrapper = $('<div class="link-inner-wrapper" style="position: relative;" />')
-        .attr('data-selected', false)
-        .attr('data-matched', false);
+    var link_inner_wrapper = $('<div class="link-inner-wrapper" style="position: relative;" />');
 
     var me = this;
     $('a').each(function(){
@@ -179,6 +190,10 @@ if (typeof Array.prototype.last != 'function') {
         shifted = true;
       }
 
+      if(e.keyCode == 27){ // esc
+        me.search_box.switch();
+      }
+
       return true
     }).on('keyup', function(e){
       if(e.keyCode == 16){ // shift
@@ -222,9 +237,11 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype.clear_search_result = function(){
     this.selected_link = null;
-    this.links.data('selected', false);
+    this.matched_links = null;
     this.links.data('matched', false);
-    this.links.data('matched-index', null);
+    this.links.data('selected', false);
+    this.links.removeClass('matched');
+    this.links.removeClass('selected');
   };
 
   LinkSelector.prototype.search = function(reverse){
@@ -235,7 +252,7 @@ if (typeof Array.prototype.last != 'function') {
       return
     }
 
-    if(!search_box.search_word_changed() && me.selected_link){
+    if(!search_box.search_word_changed() && me.selected_link && me.selected_link.exists()){
       if(reverse){
         this.move_caret_to_prev();
       }else{
@@ -245,22 +262,12 @@ if (typeof Array.prototype.last != 'function') {
       me.clear_search_result();
       search_box.push_new_search_history();
 
-      var matched_index = 0;
-      me.links.each(function(){
-        var link = $(this);
+      me.links.filter(function(){
+        return search_box.search_word_matched($(this).text())
+      }).addClass('matched');
 
-        // TODO filterを使えば matched_index が不要になる
-        // TODO 小文字にして保持した方がよい
-        if(link.text().toLowerCase().startsWith(search_box.search_word.toLowerCase())) {
-          link.data('matched', true);
-          link.data('matched-index', matched_index++);
-
-          if(!me.selected_link){
-            link.data('selected', true);
-            me.selected_link = link;
-          }
-        }
-      });
+      me.matched_links = me.links.filter('.matched');
+      me.selected_link = $(me.matched_links.first()).addClass('selected');
     }
 
     me.update_link_caret();
@@ -268,35 +275,25 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   LinkSelector.prototype.move_caret_to_prev = function(){
-    this._move_caret_to(-1, 'last');
+    var a = this.matched_links;
+    var index = (a.index(this.selected_link) - 1 + a.length) % a.length;
+    this._swap(index);
   };
 
   LinkSelector.prototype.move_caret_to_next = function(){
-    this._move_caret_to(1, 'first');
+    var index = (this.matched_links.index(this.selected_link) + 1) % this.matched_links.length;
+    this._swap(index);
   };
 
-  LinkSelector.prototype._move_caret_to = function(diff, fn_name){
-    var matched_index = this.selected_link.data('matched-index');
-    var matched_links = this.links.filter(function(){
-      return $(this).data('matched-index') != null
-    });
-
-    var index = matched_index + diff;
-    if(index < 0){
-      index = matched_links.length - 1;
-    }else if(index >= matched_links.length){
-      index = 0
-    }
-
-    var next = $(matched_links[index]);
-
-    this.selected_link.data('selected', false);
-    next.data('selected', true);
+  LinkSelector.prototype._swap = function(new_index){
+    var next = $(this.matched_links[new_index]);
+    this.selected_link.removeClass('selected');
+    next.addClass('selected');
     this.selected_link = next;
   };
 
   LinkSelector.prototype.scroll_to_caret = function(){
-    if(this.selected_link){
+    if(this.selected_link && this.selected_link.exists()){
       var top = this.selected_link.offset().top;
       $('body').animate({ scrollTop: top + this.scroll_top_offset }, 'fast');
     }
@@ -304,7 +301,10 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype.go = function(){
     if(this.selected_link){
-      global.location.href = this.selected_link.data('url');
+      var url = this.selected_link.data('url');
+      if(url){
+        global.location.href = url;
+      }
     }
   };
 
@@ -318,16 +318,16 @@ if (typeof Array.prototype.last != 'function') {
     me.links.each(function(i){
       var link = $(this);
       link
-          .find('.matched-link-wrapper')
+          .find('.matched-link-style-layer')
           .remove();
 
-      if(link.data('matched')) {
-        link.append(me.matched_link_wrapper.clone(false));
+      if(link.hasClass('matched')) {
+        link.append(me.matched_link_style_layer.clone(false));
       }
     });
 
-    if(me.selected_link){
-      me.selected_link.find('.matched-link-wrapper')
+    if(me.selected_link && me.selected_link.exists()){
+      me.selected_link.find('.matched-link-style-layer')
           .addClass('selected');
     }
   };

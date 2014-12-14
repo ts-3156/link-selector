@@ -9,7 +9,7 @@
   opacity: 0.5;
 }
 
-.matched-link-wrapper {
+.matched-link-style-layer {
   position: absolute;
   top: 0px;
   left: 0px;
@@ -18,12 +18,12 @@
   -webkit-border-radius: 3px;
 }
 
-.matched {
+.matched-link-style-layer.matched {
   background-color: #ff0000;
-  opacity: 0.5
+  opacity: 0.5;
 }
 
-.selected {
+.matched-link-style-layer.selected {
   background-color: #0000ff;
-  opacity: 0.5
+  opacity: 0.5;
 }
