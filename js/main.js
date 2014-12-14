@@ -21,18 +21,22 @@ if (typeof Array.prototype.last != 'function') {
 
 (function(global, $, undefined){
   var console = global.console;
+  var clearInterval = global.clearInterval;
+  var setInterval = global.setInterval;
 
   function LinkSelector() {
     this.search_mode = false;
     this.search_word = '';
+    this.before_search_word = '';
     this.search_word_histories = [];
-    this.d = null;
+    this.matched_link_wrapper = null;
     this.links = null;
     this.incremental_search = true;
-    this.clear_search_word_when_switching = true;
+    this.clear_search_word_when_switching = false;
     this.selected_link = null;
     this.matched_style = {backgroundColor: '#ff0000', opacity: 0.5};
     this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
+    this.input_timer_id = null;
     this.debug = true;
 
     this.init();
@@ -70,6 +74,7 @@ if (typeof Array.prototype.last != 'function') {
     var body = $('body');
     me.search_box = $('<input />')
         .css({
+          type: 'text',
           display: 'none',
           position: 'fixed',
           top: '0px',
@@ -83,29 +88,25 @@ if (typeof Array.prototype.last != 'function') {
     body.prepend(me.search_box);
 
     var shifted = false;
-    body.on('keypress', function(e, backspace){
-      if(me.search_mode){
-        e.preventDefault();
-        e.stopPropagation();
-      }
-
-      console.log(e.keyCode);
+    body.on('keypress', function(e){
+      var snapped = false;
+      //console.log('key', e.keyCode);
       switch (e.keyCode){
         case 47: // slash
           me.switch();
+          snapped = true;
           break;
         case 13: // enter
           me.search(shifted);
+          snapped = true;
           break;
         case 32: // space
           me.go();
-          break;
-        default:
-          me.input(e.keyCode, backspace);
+          snapped = true;
           break;
       }
 
-      if(me.search_mode){
+      if(me.search_mode && snapped){
         return false
       }else{
         return true
@@ -115,21 +116,45 @@ if (typeof Array.prototype.last != 'function') {
         shifted = true;
       }
 
-      if(e.keyCode == 8 && me.search_mode) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        $(this).trigger('keypress', [true]);
-
-        return false
-      }else{
-        return true
-      }
+      return true
     }).on('keyup', function(e){
       if(e.keyCode == 16){ // shift
         shifted = false;
       }
     });
+
+    me.search_box.on('input', function(){
+      me.observe_input();
+      return true
+    });
+  };
+
+  LinkSelector.prototype.observe_input = function(){
+    var me = this;
+
+    if(me.input_timer_id){
+      me.unobserve_input();
+    }
+
+    var loop_num = 0;
+    me.input_timer_id = setInterval(function () {
+      me.input();
+      loop_num++;
+
+      // 2 * 60 == 1 minute
+      if(loop_num > 2 * 60) {
+        me.unobserve_input();
+      }
+    }, 500);
+  };
+
+  LinkSelector.prototype.unobserve_input = function(){
+    if(!this.input_timer_id){
+      return
+    }
+
+    clearInterval(this.input_timer_id);
+    this.input_timer_id = null;
   };
 
   LinkSelector.prototype.switch = function(){
@@ -164,6 +189,10 @@ if (typeof Array.prototype.last != 'function') {
     if(!this.search_mode) {
       return
     }
+
+    //this.input();
+
+    if(this.debug) this.print('search');
 
     var me = this;
     if(me.search_word &&
@@ -208,20 +237,22 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype._move_caret_to = function(diff, fn_name){
     var matched_index = this.selected_link.data('matched-index');
-    var next = this.links.filter(function(){ return $(this).data('matched-index') == matched_index + diff });
+    var matched_links = this.links.filter(function(){
+      return $(this).data('matched-index') != null
+    });
 
-    if(next.length == 1){
-      this.selected_link.data('selected', false);
-      next.data('selected', true);
-      this.selected_link = next;
-    }else{
-      var target = this.links.filter(function(){ return $(this).data('matched-index') })[fn_name]();
-      if(target.length == 1){
-        this.selected_link.data('selected', false);
-        target.data('selected', true);
-        this.selected_link = target;
-      }
+    var index = matched_index + diff;
+    if(index < 0){
+      index = matched_links.length - 1;
+    }else if(index >= matched_links.length){
+      index = 0
     }
+
+    var next = $(matched_links[index]);
+
+    this.selected_link.data('selected', false);
+    next.data('selected', true);
+    this.selected_link = next;
   };
 
   LinkSelector.prototype.scroll_to_caret = function(){
@@ -237,29 +268,14 @@ if (typeof Array.prototype.last != 'function') {
     }
   };
 
-  LinkSelector.prototype.input = function(key_code, backspace){
+  LinkSelector.prototype.input = function(){
     if(!this.search_mode) {
       return
     }
 
-    if(backspace){
-      this.search_word = this.search_word.substring(0, this.search_word.length - 1);
-      this.update_search_box();
-      if(this.incremental_search){
-        this.search();
-      }
-      return
-    }
-
-    // TODO i18n対応
-    var key = String.fromCharCode(key_code);
-    //if(!key.match(/\w/)){
-    //  return
-    //}
-
-    this.search_word += key;
-    this.update_search_box();
-    if(this.incremental_search){
+    this.before_search_word = this.search_word;
+    this.search_word = this.search_box.val();
+    if(this.before_search_word != this.search_word && this.incremental_search){
       this.search();
     }
 
@@ -277,8 +293,6 @@ if (typeof Array.prototype.last != 'function') {
     }else{
       this.search_box.css('display', 'block');
     }
-
-    this.search_box.val(this.search_word);
   };
 
   LinkSelector.prototype.update_link_caret = function(){
