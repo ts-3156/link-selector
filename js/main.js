@@ -29,6 +29,7 @@ if (typeof jQuery.fn.exists != 'function') {
   var console = global.console;
   var clearInterval = global.clearInterval;
   var setInterval = global.setInterval;
+  var localStorage = global.localStorage;
 
   function SearchBox(parent) {
     this.parent = parent;
@@ -40,6 +41,7 @@ if (typeof jQuery.fn.exists != 'function') {
     this.clear_search_word_when_switching = false;
     this.select_all_links_when_empty_search_word = false;
     this.select_text_when_enabled = true;
+    this.stay_enabled_when_moving_to_next_page = true;
 
     this.init();
   };
@@ -76,6 +78,10 @@ if (typeof jQuery.fn.exists != 'function') {
         }
       }
     });
+
+    if(this.stay_enabled_when_moving_to_next_page){
+      localStorage.setItem('search_mode', this.search_mode);
+    }
   };
 
   SearchBox.prototype.input = function(){
@@ -174,6 +180,12 @@ if (typeof jQuery.fn.exists != 'function') {
 
     me.search_box = new SearchBox(this);
     me.bind_key_event();
+
+    if(me.search_box.stay_enabled_when_moving_to_next_page){
+      if(localStorage.getItem('search_mode')){
+        me.search_box.switch();
+      }
+    }
   };
 
   LinkSelector.prototype.bind_key_event = function(){
