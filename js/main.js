@@ -96,7 +96,7 @@ if (typeof Array.prototype.last != 'function') {
 
   SearchBox.prototype.search_word_changed = function(){
     return this.search_word != null && this.search_word != ''
-        && this.search_word == this.search_word_histories.last()
+        && this.search_word != this.search_word_histories.last()
   };
 
   SearchBox.prototype.focus = function(){
@@ -127,6 +127,7 @@ if (typeof Array.prototype.last != 'function') {
     this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
     this.input_timer_id = null;
     this.incremental_search = true;
+    this.input_observe_interval = 500;
     this.debug = true;
 
     this.init();
@@ -222,11 +223,11 @@ if (typeof Array.prototype.last != 'function') {
       me.search_box.input();
       loop_num++;
 
-      // 2 * 60 == 1 minute
-      if(loop_num > 2 * 60) {
+      // 1 minute
+      if(loop_num > 1000 / me.input_observe_interval * 60) {
         me.unobserve_input();
       }
-    }, 500);
+    }, me.input_observe_interval);
   };
 
   LinkSelector.prototype.unobserve_input = function(){
