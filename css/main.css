@@ -24,6 +24,13 @@
 }
 
 .matched-link-style-layer.selected {
+  border: 4px solid rgba(0, 0, 32, 0.5);
+  top: -4px;  /* the same as border width */
+  left: -4px; /* the same as border width */
   background-color: #0000ff;
   opacity: 0.5;
+}
+
+.matched-link-style-layer.selected.blink {
+  border: 4px solid rgba(0, 0, 255, 0.5);
 }

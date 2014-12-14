@@ -1,14 +1,20 @@
 {
   "manifest_version": 2,
   "name": "Link Selector",
-  "version": "0.0.1",
+  "version": "0.1.1",
 
-  "description": "Link Selector",
+  "description": "Search and move to without mouse",
 
   "icons": {
     "16": "icons/japan50_16.png",
     "48": "icons/japan50_48.png",
     "128": "icons/japan50_128.png"
+  },
+
+  "browser_action": {
+    "default_icon": "icons/japan50_48.png",
+    "default_title": "Search and move to without mouse",
+    "default_popup": "popup.html"
   },
 
   "content_scripts": [

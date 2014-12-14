@@ -84,6 +84,20 @@ if (typeof jQuery.fn.exists != 'function') {
     }
   };
 
+  SearchBox.prototype.show = function(){
+    if(this.search_mode){
+      this.focus();
+    }else{
+      this.switch();
+    }
+  };
+
+  SearchBox.prototype.hide = function(){
+    if(this.search_mode){
+      this.switch();
+    }
+  };
+
   SearchBox.prototype.input = function(){
     if(!this.search_mode) {
       return
@@ -149,9 +163,11 @@ if (typeof jQuery.fn.exists != 'function') {
     this.links = null;
     this.matched_links = null;
     this.selected_link = null;
-    this.input_timer_id = null;
     this.incremental_search = true;
-    this.input_observe_interval = 200;
+    this.input_timer_id = null;
+    this.input_observe_interval = 100;
+    this.blink_timer_id = null;
+    this.blink_interval = 500;
     this.scroll_top_offset = -100;
     this.debug = true;
 
@@ -195,11 +211,11 @@ if (typeof jQuery.fn.exists != 'function') {
 
     $('body').on('keypress', function(e){
       var snapped = false;
-      console.log('key', e.keyCode);
+      console.log('press', e.keyCode);
       switch (e.keyCode){
         case 47: // slash
           if(controled){
-            me.search_box.switch();
+            me.search_box.show();
             snapped = true;
           }
           break;
@@ -219,14 +235,13 @@ if (typeof jQuery.fn.exists != 'function') {
         return true
       }
     }).on('keydown', function(e) {
+      console.log('down', e.keyCode);
       switch (e.keyCode){
         case 16: // shift
           shifted = true;
           break;
         case 27: // esc
-          if(me.search_box.search_mode){
-            me.search_box.switch();
-          }
+          me.search_box.hide();
           break;
         case 17: // control
           controled = true;
@@ -376,6 +391,39 @@ if (typeof jQuery.fn.exists != 'function') {
       me.selected_link.find('.matched-link-style-layer')
           .addClass('selected');
     }
+
+    me.blink_selected_link_caret();
+  };
+
+  LinkSelector.prototype.blink_selected_link_caret = function(){
+    var me = this;
+
+    if(me.blink_timer_id){
+      me.unblink_selected_link_caret();
+    }
+
+    var loop_num = 0;
+    me.blink_timer_id = setInterval(function () {
+      if(me.selected_link && me.selected_link.exists()){
+        me.selected_link.find('.matched-link-style-layer')
+            .toggleClass('blink');
+      }
+      loop_num++;
+
+      // 10 seconds
+      if(loop_num > 1000 / me.blink_interval * 10) {
+        me.unblink_selected_link_caret();
+      }
+    }, me.blink_interval);
+  };
+
+  LinkSelector.prototype.unblink_selected_link_caret = function(){
+    if(!this.blink_timer_id){
+      return
+    }
+
+    clearInterval(this.blink_timer_id);
+    this.blink_timer_id = null;
   };
 
   LinkSelector.prototype.mode_switched = function(callback_fn){
