@@ -220,11 +220,11 @@ if (typeof jQuery.fn.exists != 'function') {
           }
           break;
         case 13: // enter
-          me.search(shifted);
-          snapped = true;
-          break;
-        case 32: // space
-          me.go();
+          if(shifted){
+            me.search(shifted);
+          }else if(controled){
+            me.go();
+          }
           snapped = true;
           break;
       }
