@@ -31,7 +31,6 @@ if (typeof Array.prototype.last != 'function') {
     this.search_word = '';
     this.before_search_word = '';
     this.search_word_histories = [];
-    this.incremental_search = true;
     this.clear_search_word_when_switching = false;
 
     this.init();
@@ -65,23 +64,18 @@ if (typeof Array.prototype.last != 'function') {
 
   SearchBox.prototype.switch = function(){
     this.search_mode = !this.search_mode;
-    this.parent.clear_search_result();
     if(this.clear_search_word_when_switching){
       this.search_word = '';
     }
 
     this.focusout();
 
-    if(this.search_mode && this.incremental_search){
-      this.parent.search();
-      this.parent.update();
-    }else{
-      this.parent.update();
-    }
-
-    if(this.search_mode){
-      this.focus();
-    }
+    var me = this;
+    this.parent.mode_switched(function(){
+      if(me.search_mode){
+        me.focus();
+      }
+    });
   };
 
   SearchBox.prototype.input = function(){
@@ -91,13 +85,18 @@ if (typeof Array.prototype.last != 'function') {
 
     this.before_search_word = this.search_word;
     this.search_word = this.text();
-    if(this.text_changed() && this.incremental_search){
-      this.parent.search();
+    if(this.text_changed()){
+      this.parent.text_changed();
     }
   };
 
   SearchBox.prototype.text_changed = function(){
     return this.before_search_word != this.search_word
+  };
+
+  SearchBox.prototype.search_word_changed = function(){
+    return this.search_word != null && this.search_word != ''
+        && this.search_word == this.search_word_histories.last()
   };
 
   SearchBox.prototype.focus = function(){
@@ -127,6 +126,7 @@ if (typeof Array.prototype.last != 'function') {
     this.matched_style = {backgroundColor: '#ff0000', opacity: 0.5};
     this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
     this.input_timer_id = null;
+    this.incremental_search = true;
     this.debug = true;
 
     this.init();
@@ -253,8 +253,7 @@ if (typeof Array.prototype.last != 'function') {
       return
     }
 
-    if(search_box.search_word &&
-        search_box.search_word == search_box.search_word_histories.last() && me.selected_link){
+    if(!search_box.search_word_changed() && me.selected_link){
       if(reverse){
         this.move_caret_to_prev();
       }else{
@@ -346,15 +345,30 @@ if (typeof Array.prototype.last != 'function') {
     });
 
     if(me.selected_link){
-      console.log('selected', me.selected_link);
       me.selected_link.find('.matched-link-wrapper').css(me.selected_style);
     }
   };
 
-  LinkSelector.prototype.print = function(name){
-    console.log(name, this);
+  LinkSelector.prototype.mode_switched = function(callback_fn){
+    this.clear_search_result();
+    if(this.search_box.search_mode && this.incremental_search){
+      this.search();
+      this.update();
+    }else{
+      this.update();
+    }
+
+    if (typeof callback_fn == 'function') {
+      callback_fn();
+    }
   };
 
-  var app = new LinkSelector();
+  LinkSelector.prototype.text_changed = function(){
+    if(this.incremental_search){
+      this.search();
+    }
+  };
+
+  new LinkSelector();
 
 })(window, jQuery);
