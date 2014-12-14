@@ -24,15 +24,99 @@ if (typeof Array.prototype.last != 'function') {
   var clearInterval = global.clearInterval;
   var setInterval = global.setInterval;
 
-  function LinkSelector() {
+  function SearchBox(parent) {
+    this.parent = parent;
+    this.element = null;
     this.search_mode = false;
     this.search_word = '';
     this.before_search_word = '';
     this.search_word_histories = [];
-    this.matched_link_wrapper = null;
-    this.links = null;
     this.incremental_search = true;
     this.clear_search_word_when_switching = false;
+
+    this.init();
+  };
+
+  SearchBox.prototype.init = function(){
+    var body = $('body');
+    this.element = $('<input />')
+        .css({
+          type: 'text',
+          display: 'none',
+          position: 'fixed',
+          top: '0px',
+          left: '0px',
+          width: '200px',
+          height: '30px',
+          border: '1px solid rgba(0, 0, 0, .5)',
+          opacity: 0.5
+        });
+
+    body.prepend(this.element);
+  };
+
+  SearchBox.prototype.text = function(){
+    return this.element.val();
+  };
+
+  SearchBox.prototype.on = function(name, fn){
+    this.element.on(name, fn);
+  };
+
+  SearchBox.prototype.switch = function(){
+    this.search_mode = !this.search_mode;
+    this.parent.clear_search_result();
+    if(this.clear_search_word_when_switching){
+      this.search_word = '';
+    }
+
+    if(this.search_mode && this.incremental_search){
+      this.parent.search();
+      this.parent.update();
+    }else{
+      this.parent.update();
+    }
+
+    if(this.search_mode){
+      this.focus();
+    }
+  };
+
+  SearchBox.prototype.input = function(){
+    if(!this.search_mode) {
+      return
+    }
+
+    this.before_search_word = this.search_word;
+    this.search_word = this.text();
+    if(this.text_changed() && this.incremental_search){
+      this.parent.search();
+    }
+  };
+
+  SearchBox.prototype.text_changed = function(){
+    return this.before_search_word != this.search_word
+  };
+
+  SearchBox.prototype.focus = function(){
+    this.element.focus();
+  };
+
+  SearchBox.prototype.push_new_search_history = function(){
+    this.search_word_histories.push(this.search_word);
+  };
+
+  SearchBox.prototype.update = function(){
+    if(!this.search_mode){
+      this.element.css('display', 'none');
+    }else{
+      this.element.css('display', 'block');
+    }
+  };
+
+  function LinkSelector() {
+    this.matched_link_wrapper = null;
+    this.links = null;
     this.selected_link = null;
     this.matched_style = {backgroundColor: '#ff0000', opacity: 0.5};
     this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
@@ -71,24 +155,10 @@ if (typeof Array.prototype.last != 'function') {
 
     me.links = $('.link-inner-wrapper');
 
-    var body = $('body');
-    me.search_box = $('<input />')
-        .css({
-          type: 'text',
-          display: 'none',
-          position: 'fixed',
-          top: '0px',
-          left: '0px',
-          width: '200px',
-          height: '30px',
-          border: '1px solid rgba(0, 0, 0, .5)',
-          opacity: 0.5
-        });
-
-    body.prepend(me.search_box);
+    me.search_box = new SearchBox(this);
 
     var shifted = false;
-    body.on('keypress', function(e){
+    $('body').on('keypress', function(e){
       var snapped = false;
       //console.log('key', e.keyCode);
       switch (e.keyCode){
@@ -158,24 +228,7 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   LinkSelector.prototype.switch = function(){
-    this.search_mode = !this.search_mode;
-    this.clear_search_result();
-    if(this.clear_search_word_when_switching){
-      this.search_word = '';
-    }
-
-    if(this.search_mode && this.incremental_search){
-      this.search();
-      this.update();
-    }else{
-      this.update();
-    }
-
-    if(this.search_mode){
-      this.search_box.focus();
-    }
-
-    if(this.debug) this.print('switch');
+    this.search_box.switch();
   };
 
   LinkSelector.prototype.clear_search_result = function(){
@@ -186,17 +239,15 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   LinkSelector.prototype.search = function(reverse){
-    if(!this.search_mode) {
+    var me = this;
+    var search_box = me.search_box;
+
+    if(!search_box.search_mode) {
       return
     }
 
-    //this.input();
-
-    if(this.debug) this.print('search');
-
-    var me = this;
-    if(me.search_word &&
-        me.search_word == me.search_word_histories.last() && me.selected_link){
+    if(search_box.search_word &&
+        search_box.search_word == search_box.search_word_histories.last() && me.selected_link){
       if(reverse){
         this.move_caret_to_prev();
       }else{
@@ -204,14 +255,15 @@ if (typeof Array.prototype.last != 'function') {
       }
     }else{
       me.clear_search_result();
-      me.search_word_histories.push(me.search_word);
+      search_box.push_new_search_history();
 
       var matched_index = 0;
       me.links.each(function(){
         var link = $(this);
 
+        // TODO filterを使えば matched_index が不要になる
         // TODO 小文字にして保持した方がよい
-        if(link.text().toLowerCase().startsWith(me.search_word.toLowerCase())) {
+        if(link.text().toLowerCase().startsWith(search_box.search_word.toLowerCase())) {
           link.data('matched', true);
           link.data('matched-index', matched_index++);
 
@@ -269,30 +321,12 @@ if (typeof Array.prototype.last != 'function') {
   };
 
   LinkSelector.prototype.input = function(){
-    if(!this.search_mode) {
-      return
-    }
-
-    this.before_search_word = this.search_word;
-    this.search_word = this.search_box.val();
-    if(this.before_search_word != this.search_word && this.incremental_search){
-      this.search();
-    }
-
-    if(this.debug) this.print('input');
+    this.search_box.input();
   };
 
   LinkSelector.prototype.update = function(){
-    this.update_search_box();
+    this.search_box.update();
     this.update_link_caret();
-  };
-
-  LinkSelector.prototype.update_search_box = function(){
-    if(!this.search_mode){
-      this.search_box.css('display', 'none');
-    }else{
-      this.search_box.css('display', 'block');
-    }
   };
 
   LinkSelector.prototype.update_link_caret = function(){
