@@ -38,18 +38,7 @@ if (typeof Array.prototype.last != 'function') {
 
   SearchBox.prototype.init = function(){
     var body = $('body');
-    this.element = $('<input />')
-        .css({
-          type: 'text',
-          display: 'none',
-          position: 'fixed',
-          top: '0px',
-          left: '0px',
-          width: '200px',
-          height: '30px',
-          border: '1px solid rgba(0, 0, 0, .5)',
-          opacity: 0.5
-        });
+    this.element = $('<input class="search-box" type="text" />');
 
     body.prepend(this.element);
   };
@@ -123,11 +112,10 @@ if (typeof Array.prototype.last != 'function') {
     this.matched_link_wrapper = null;
     this.links = null;
     this.selected_link = null;
-    this.matched_style = {backgroundColor: '#ff0000', opacity: 0.5};
-    this.selected_style = {backgroundColor: '#0000ff', opacity: 0.5};
     this.input_timer_id = null;
     this.incremental_search = true;
-    this.input_observe_interval = 500;
+    this.input_observe_interval = 300;
+    this.scroll_top_offset = -100;
     this.debug = true;
 
     this.init();
@@ -135,19 +123,12 @@ if (typeof Array.prototype.last != 'function') {
 
   LinkSelector.prototype.init = function(){
     // position: absolute で色を付けるやつ
-    this.matched_link_wrapper = $('<span />')
+    this.matched_link_wrapper = $('<div />')
         .addClass('matched-link-wrapper')
-        .css({
-          position: 'absolute',
-          top: '0px',
-          left: '0px',
-          width: '100%',
-          height: '100%'
-        })
-        .css(this.matched_style);
+        .addClass('matched');
 
     // aタグの中に入れるだけのやつ
-    var link_inner_wrapper = $('<span class="link-inner-wrapper" style="position: relative;" />')
+    var link_inner_wrapper = $('<div class="link-inner-wrapper" style="position: relative;" />')
         .attr('data-selected', false)
         .attr('data-matched', false);
 
@@ -317,7 +298,7 @@ if (typeof Array.prototype.last != 'function') {
   LinkSelector.prototype.scroll_to_caret = function(){
     if(this.selected_link){
       var top = this.selected_link.offset().top;
-      $('body').animate({ scrollTop: top }, 'fast');
+      $('body').animate({ scrollTop: top + this.scroll_top_offset }, 'fast');
     }
   };
 
@@ -346,7 +327,8 @@ if (typeof Array.prototype.last != 'function') {
     });
 
     if(me.selected_link){
-      me.selected_link.find('.matched-link-wrapper').css(me.selected_style);
+      me.selected_link.find('.matched-link-wrapper')
+          .addClass('selected');
     }
   };
 
