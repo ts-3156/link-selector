@@ -207,23 +207,23 @@ if (typeof jQuery.fn.exists != 'function') {
   LinkSelector.prototype.bind_key_event = function(){
     var me = this;
     var shifted = false;
-    var controled = false;
+    var controlled = false;
 
     $('body').on('keypress', function(e){
       var snapped = false;
       console.log('press', e.keyCode);
       switch (e.keyCode){
         case 47: // slash
-          if(controled){
+          if(controlled){
             me.search_box.show();
             snapped = true;
           }
           break;
         case 13: // enter
-          if(shifted){
-            me.search(shifted);
-          }else if(controled){
+          if(controlled){
             me.go();
+          }else{
+            me.search(shifted);
           }
           snapped = true;
           break;
@@ -244,7 +244,7 @@ if (typeof jQuery.fn.exists != 'function') {
           me.search_box.hide();
           break;
         case 17: // control
-          controled = true;
+          controlled = true;
           break;
       }
 
@@ -255,7 +255,7 @@ if (typeof jQuery.fn.exists != 'function') {
           shifted = false;
           break;
         case 17: // control
-          controled = false;
+          controlled = false;
           break;
       }
 
