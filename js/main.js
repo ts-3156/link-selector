@@ -80,7 +80,7 @@ if (typeof jQuery.fn.exists != 'function') {
     });
 
     if(this.stay_enabled_when_moving_to_next_page){
-      localStorage.setItem('search_mode', this.search_mode);
+      localStorage.setItem('search_mode', JSON.stringify(this.search_mode));
     }
   };
 
@@ -138,9 +138,9 @@ if (typeof jQuery.fn.exists != 'function') {
 
   SearchBox.prototype.update = function(){
     if(!this.search_mode){
-      this.element.css('display', 'none');
+      this.element.hide(500);
     }else{
-      this.element.css('display', 'block');
+      this.element.show(500);
     }
   };
 
@@ -151,7 +151,7 @@ if (typeof jQuery.fn.exists != 'function') {
     this.selected_link = null;
     this.input_timer_id = null;
     this.incremental_search = true;
-    this.input_observe_interval = 300;
+    this.input_observe_interval = 200;
     this.scroll_top_offset = -100;
     this.debug = true;
 
@@ -182,7 +182,7 @@ if (typeof jQuery.fn.exists != 'function') {
     me.bind_key_event();
 
     if(me.search_box.stay_enabled_when_moving_to_next_page){
-      if(localStorage.getItem('search_mode')){
+      if(JSON.parse(localStorage.getItem('search_mode'))){
         me.search_box.switch();
       }
     }
@@ -191,14 +191,17 @@ if (typeof jQuery.fn.exists != 'function') {
   LinkSelector.prototype.bind_key_event = function(){
     var me = this;
     var shifted = false;
+    var controled = false;
 
     $('body').on('keypress', function(e){
       var snapped = false;
       console.log('key', e.keyCode);
       switch (e.keyCode){
         case 47: // slash
-          me.search_box.switch();
-          snapped = true;
+          if(controled){
+            me.search_box.switch();
+            snapped = true;
+          }
           break;
         case 13: // enter
           me.search(shifted);
@@ -216,19 +219,32 @@ if (typeof jQuery.fn.exists != 'function') {
         return true
       }
     }).on('keydown', function(e) {
-      if(e.keyCode == 16){ // shift
-        shifted = true;
-      }
-
-      if(e.keyCode == 27){ // esc
-        me.search_box.switch();
+      switch (e.keyCode){
+        case 16: // shift
+          shifted = true;
+          break;
+        case 27: // esc
+          if(me.search_box.search_mode){
+            me.search_box.switch();
+          }
+          break;
+        case 17: // control
+          controled = true;
+          break;
       }
 
       return true
     }).on('keyup', function(e){
-      if(e.keyCode == 16){ // shift
-        shifted = false;
+      switch (e.keyCode){
+        case 16: // shift
+          shifted = false;
+          break;
+        case 17: // control
+          controled = false;
+          break;
       }
+
+      return true
     });
 
     me.search_box.on('input', function(){
