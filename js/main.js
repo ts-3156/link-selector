@@ -38,7 +38,8 @@ if (typeof jQuery.fn.exists != 'function') {
     this.before_search_word = '';
     this.search_word_histories = [];
     this.clear_search_word_when_switching = false;
-    this.select_all_when_empty_search_word = false;
+    this.select_all_links_when_empty_search_word = false;
+    this.select_text_when_enabled = true;
 
     this.init();
   };
@@ -70,6 +71,9 @@ if (typeof jQuery.fn.exists != 'function') {
     this.parent.mode_switched(function(){
       if(me.search_mode){
         me.focus();
+        if(me.select_text_when_enabled){
+          me.select();
+        }
       }
     });
   };
@@ -98,7 +102,7 @@ if (typeof jQuery.fn.exists != 'function') {
   SearchBox.prototype.search_word_matched = function(str){
     // TODO 小文字にして持っといた方がいいかも
     // TODO 前方一致以外のマッチ
-    if(this.select_all_when_empty_search_word && this.search_word == ''){
+    if(this.select_all_links_when_empty_search_word && this.search_word == ''){
       return true
     }
 
@@ -108,6 +112,10 @@ if (typeof jQuery.fn.exists != 'function') {
     }
 
     return str.toLowerCase().startsWith(this.search_word.toLowerCase())
+  };
+
+  SearchBox.prototype.select = function(){
+    this.element.select();
   };
 
   SearchBox.prototype.focus = function(){
