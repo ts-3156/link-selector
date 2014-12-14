@@ -70,6 +70,8 @@ if (typeof Array.prototype.last != 'function') {
       this.search_word = '';
     }
 
+    this.focusout();
+
     if(this.search_mode && this.incremental_search){
       this.parent.search();
       this.parent.update();
@@ -100,6 +102,10 @@ if (typeof Array.prototype.last != 'function') {
 
   SearchBox.prototype.focus = function(){
     this.element.focus();
+  };
+
+  SearchBox.prototype.focusout = function(){
+    this.element.focusout();
   };
 
   SearchBox.prototype.push_new_search_history = function(){
@@ -156,14 +162,19 @@ if (typeof Array.prototype.last != 'function') {
     me.links = $('.link-inner-wrapper');
 
     me.search_box = new SearchBox(this);
+    me.bind_key_event();
+  };
 
+  LinkSelector.prototype.bind_key_event = function(){
+    var me = this;
     var shifted = false;
+
     $('body').on('keypress', function(e){
       var snapped = false;
-      //console.log('key', e.keyCode);
+      console.log('key', e.keyCode);
       switch (e.keyCode){
         case 47: // slash
-          me.switch();
+          me.search_box.switch();
           snapped = true;
           break;
         case 13: // enter
@@ -176,7 +187,7 @@ if (typeof Array.prototype.last != 'function') {
           break;
       }
 
-      if(me.search_mode && snapped){
+      if(me.search_box.search_mode && snapped){
         return false
       }else{
         return true
@@ -208,7 +219,7 @@ if (typeof Array.prototype.last != 'function') {
 
     var loop_num = 0;
     me.input_timer_id = setInterval(function () {
-      me.input();
+      me.search_box.input();
       loop_num++;
 
       // 2 * 60 == 1 minute
@@ -225,10 +236,6 @@ if (typeof Array.prototype.last != 'function') {
 
     clearInterval(this.input_timer_id);
     this.input_timer_id = null;
-  };
-
-  LinkSelector.prototype.switch = function(){
-    this.search_box.switch();
   };
 
   LinkSelector.prototype.clear_search_result = function(){
@@ -318,10 +325,6 @@ if (typeof Array.prototype.last != 'function') {
     if(this.selected_link){
       global.location.href = this.selected_link.data('url');
     }
-  };
-
-  LinkSelector.prototype.input = function(){
-    this.search_box.input();
   };
 
   LinkSelector.prototype.update = function(){
